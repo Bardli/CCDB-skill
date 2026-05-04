@@ -89,6 +89,30 @@ If a job comes back with `CPU Efficiency: 12%` or "GPU idle 3 hours", **fix
 it before submitting more**. Alliance staff will lower your group's priority
 if the pattern continues, and your PI will get the notification.
 
+### `seff` → next-job sizing (the post-hoc feedback loop)
+
+`seff` is not just a report card — it is the **input to the next sbatch's
+flags**. Every completed job teaches you how to size the next one. Don't
+re-submit the same flags after a low-efficiency run; resize first.
+
+| `seff` field | What to change in the next sbatch | Why |
+|---|---|---|
+| Memory Utilized: 18 GB / 64 GB requested (28%) | `--mem=24G` (peak × 1.2, round up) | Mem over-request can flip you past GPU-dominance break-even and inflate the bill; always shrinks LevelFS damage. |
+| CPU Efficiency: 35% | drop `--cpus-per-task` to actual saturated cores; if dataloader-bound, **also raise `num_workers`** before resubmitting | Idle CPUs past break-even = pure waste; under-fed GPU = the same waste in disguise. |
+| GPU utilization (from in-job `nvidia-smi`, not `seff`): <70% sustained | drop to a smaller MIG / partial GPU slice on next run | A half-fed full H100 is ~4× the bill of an appropriately-sized 2g.20gb on Fir. |
+| Job Wall-clock: 6 h / 24 h requested | drop `--time=8:00:00` (actual + 30%) | Tighter `--time` improves backfill priority — Slurm prefers jobs it can squeeze into gaps. Billing already uses elapsed, but queue position uses requested. |
+| State: TIMEOUT | first ask "did it converge or just run out?" Then either raise `--time` *and* enable resume-from-checkpoint, OR add patience early-stop so the next run doesn't TIMEOUT again | TIMEOUT bills the **full** requested wall-clock and leaves no checkpoint past the last save — the worst-case billing outcome. |
+| State: OUT_OF_MEMORY | raise `--mem` by 50% AND investigate the leak | Don't just bump mem; OOM often means a dataloader/collate bug that will recur on bigger data. |
+
+**Rule:** if the previous job scored <80% on any `seff` axis, the next
+sbatch must change at least one flag. "Resubmit identical" after a bad
+`seff` is a lab-priority sin — see the LevelFS section above.
+
+The phase-1 measurement table in `pipeline-iteration.md` covers
+*pre-submit* sizing (smoke test → first full run). This `seff` table covers
+*post-submit* sizing (full run → next full run). Use both — they are the
+two halves of the same loop.
+
 ## Account selection — MANDATORY pre-submit step
 
 Most users have multiple Alliance accounts. LevelFS drifts daily as the
