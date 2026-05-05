@@ -152,6 +152,37 @@ srun --account=<your-gpu-account> --gpus-per-node=h100_2g.20gb:1 \
 
 **Cancel when stepping away** — idle interactive billing tanks LevelFS for the whole lab.
 
+### Alternative: `sbatch` reservation + `ssh` into the node
+
+`salloc` / `srun --pty` ties the allocation to your terminal — drop the SSH and the job dies. If you work from VS Code Remote / Cursor and want to reconnect across laptop sleeps, submit a sleep-loop batch job and SSH directly into the assigned node:
+
+```bash
+# job_12h_dev.sh
+#!/bin/bash
+#SBATCH --account=<your-gpu-account>
+#SBATCH --gpus-per-node=h100_2g.20gb:1
+#SBATCH --cpus-per-task=3
+#SBATCH --mem=40G
+#SBATCH --time=12:00:00
+#SBATCH --output=<scratch>/slurm_logs/%x_%j.out
+sleep infinity
+```
+
+```bash
+sbatch job_12h_dev.sh
+sq                                       # find assigned node, e.g. fc30502
+ssh fc30502.fir.alliancecan.ca           # or point VS Code Remote at it
+# work happens in this SSH session; module load + venv activate as usual
+```
+
+**Discipline rules** (this pattern is the easiest way to silently torch your lab's LevelFS):
+
+1. **`scancel` the job the moment you stop working.** No "I'll come back after dinner". An idle GPU reservation bills exactly the same as 100%-utilized.
+2. **Use the smallest GPU slice you actually need** for editing/inspection — usually `h100_1g.10gb` or `h100_2g.20gb`. Don't reserve a full 80 GB H100 to read code.
+3. **Time limit ≤ 12 h.** If you genuinely need longer, that's a real training job — submit it as one with a real command, not `sleep infinity`.
+4. **One reservation at a time per user.** Multiple sleep jobs across nodes is a fast way to get the admins' attention.
+5. **Verify with `seff <jobID>` after cancel.** If utilization < 30%, the job was over-provisioned — size down next time.
+
 ## CPU-only long job (data prep, archiving, conversion)
 
 ```bash
