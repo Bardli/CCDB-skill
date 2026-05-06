@@ -42,9 +42,37 @@ partitioned into smaller virtual GPUs.
 | `/home/$USER` | `$HOME` | small fixed (~48 GB) | persistent |
 | `/scratch/$USER` | `$SCRATCH` | large fixed | inactive purge (60 days) |
 | `/project/<group>` | `$PROJECT` | RAC | persistent |
+| `/localscratch/<user>.<jobid>.0/` | (see below) | per-node NVMe (~7 TB) | per-job, auto-cleaned |
 | `/cvmfs/soft.computecanada.ca/...` | — | shared software stack | read-only |
 
 Total cluster storage: 51 PB (2 PB NVMe + 49 PB SAS).
+
+### `/localscratch` — Fir-specific job-local NVMe
+
+Each Fir compute node has a `/localscratch` mount on local NVMe — observed
+on `fc10920` (2026-05-06) at **7.0 TB / 6.8 TB free**, mounted xfs with
+`noquota`. SLURM auto-creates `/localscratch/$USER.$SLURM_JOB_ID.0/` for
+every job; the directory is owned by you and writable. Contents are wiped at
+job exit by the SLURM epilog.
+
+Two important quirks vs. the generic `$SLURM_TMPDIR` pattern:
+
+1. **`$SLURM_TMPDIR` is not always exported on Fir.** The dir exists, but if
+   you `echo $SLURM_TMPDIR` from inside a job and get nothing, build the
+   path yourself: `LOCAL_SCRATCH=/localscratch/${USER}.${SLURM_JOB_ID}.0`.
+   The recipe in `references/storage.md` uses `${SLURM_TMPDIR:-…}` for
+   safety.
+2. **`/localscratch` does not count against `--mem=`** — it's real NVMe
+   disk, not tmpfs. By contrast `/tmp` on Fir compute nodes IS tmpfs
+   (RAM-backed) and bytes there ARE charged to `--mem=`. Staging a big
+   dataset to `/tmp` on a small `--mem=` allocation will OOM-kill the job
+   (confirmed: job 38842614 was SIGKILLed staging 28 GB of NPZ to /tmp on
+   a 64 GB allocation; sacct showed `State=CANCELLED` with `ExitCode=0:0`).
+   Stage to `/localscratch` instead.
+
+`--tmp=200G` in the sbatch header is recommended even though the node has
+~7 TB free — it documents intent for the scheduler and survives any future
+node-pool rebalancing.
 
 ## Fir-specific quirks
 
