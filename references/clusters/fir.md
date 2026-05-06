@@ -66,8 +66,9 @@ Two important quirks vs. the generic `$SLURM_TMPDIR` pattern:
    disk, not tmpfs. By contrast `/tmp` on Fir compute nodes IS tmpfs
    (RAM-backed) and bytes there ARE charged to `--mem=`. Staging a big
    dataset to `/tmp` on a small `--mem=` allocation will OOM-kill the job
-   (confirmed: job 38842614 was SIGKILLed staging 28 GB of NPZ to /tmp on
-   a 64 GB allocation; sacct showed `State=CANCELLED` with `ExitCode=0:0`).
+   (observed on Fir 2026-05-06: a 28 GB `cp` of NPZ files into /tmp on a
+   `--mem=64G` allocation triggered a cgroup-OOM SIGKILL; sacct showed
+   `State=CANCELLED` with `ExitCode=0:0`).
    Stage to `/localscratch` instead.
 
 `--tmp=200G` in the sbatch header is recommended even though the node has
@@ -134,22 +135,23 @@ Re-verify with `scontrol show partition gpubase_bygpu_b1 | grep -i tresbill`.
 ## Account selection — RRG first, then default
 
 If you have both an RRG (RAC competition award) and a default-allocation
-account on Fir (e.g. `rrg-jma_gpu` and `def-jma-ab_gpu` for the same PI),
-**use the RRG account first**. RRG/RPP allocations are merit-awarded for a
-specific project on an annual use-it-or-lose-it cycle; default accounts
-are auto-granted fallbacks. Reserving the RRG account "for later" wastes
-the awarded cycles.
+account on Fir (e.g. `rrg-<pi>_gpu` and `def-<pi>-<sub>_gpu` for the
+same PI), **use the RRG account first**. RRG/RPP allocations are
+merit-awarded for a specific project on an annual use-it-or-lose-it
+cycle; default accounts are auto-granted fallbacks. Reserving the RRG
+account "for later" wastes the awarded cycles.
 
 Submit-priority benefit, not just policy: on Fir the SLURM FAIRSHARE
 priority component is dominated by the *FairShare* score (multi-level
 FairTree), not by LevelFS. RRG accounts typically have higher FairShare
 because their parent group has a larger root-level share allocation —
-*even when LevelFS at the leaf account is lower*. Confirmed 2026-05-06:
+*even when LevelFS at the leaf account is lower*. Real numbers from a
+def-* + rrg-* pair on Fir (2026-05-06, account names anonymised):
 
 | Account | LevelFS | FairShare | FAIRSHARE priority |
 |---|---|---|---|
-| `def-jma-ab_gpu` | 2.998 | 0.337 | 1.68 M |
-| `rrg-jma_gpu`    | 0.431 | **0.498** | **2.50 M** (1.48× ↑) |
+| `def-<pi>-<sub>_gpu` | 2.998 | 0.337 | 1.68 M |
+| `rrg-<pi>_gpu`       | 0.431 | **0.498** | **2.50 M** (1.48× ↑) |
 
 `scripts/pick-gpu-account.sh` ranks by FairShare since 2026-05-06; the
 older LevelFS-based behaviour is preserved behind `PICK_BY=levelfs`.
@@ -158,7 +160,7 @@ If a 12-h job submitted under the wrong account is still PENDING, you
 can re-route it without losing queue position:
 
 ```bash
-scontrol update JobId=<jobid> Account=rrg-jma_gpu
+scontrol update JobId=<jobid> Account=rrg-<pi>_gpu
 ```
 
 The job's FAIRSHARE priority is recomputed within the next SLURM

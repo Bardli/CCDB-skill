@@ -107,4 +107,4 @@ module load python/3.11.5 nodejs/20.16.0 cuda/12.6 cmake/3.31.0 go/1.22.5 rust/1
 - **System status / outages** — <https://status.alliancecan.ca/>
 - **CCDB account portal** (allocations, group membership) — <https://ccdb.alliancecan.ca/>
 - **Per-cluster pages** — `https://docs.alliancecan.ca/wiki/<Cluster>` (Cedar, Graham, etc.)
-- **Personal config** — your specific account names, venv catalog, group memberships live in your local Claude memory at `~/.claude/projects/-scratch-baidu/memory/personal_cc_config.md`. Not committed to this repo.
+- **Personal config** — your specific account names, venv catalog, group memberships should live in your local Claude memory (e.g. `~/.claude/projects/<your-project>/memory/personal_cc_config.md`), not in this repo. The shared skill uses placeholders like `def-<pi>_gpu` / `rrg-<pi>_gpu`; resolve to your actual account names at runtime via `pick-gpu-account.sh` (or the local memory file).

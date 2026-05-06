@@ -17,11 +17,12 @@
 #   account has been used more recently and shows lower LevelFS in its
 #   own subtree.
 #
-#   Example (Fir, 2026-05-06):
-#       def-jma-ab_gpu  LevelFS=2.998  FairShare=0.337
-#       rrg-jma_gpu     LevelFS=0.431  FairShare=0.498
-#   LevelFS picks def-jma-ab_gpu — wrong; submitting under rrg-jma_gpu gave
-#   a 1.48× higher FAIRSHARE priority component (1.68 M → 2.50 M).
+#   Example (Fir, 2026-05-06, real numbers, account names anonymised):
+#       def-<pi>-<sub>_gpu   LevelFS=2.998   FairShare=0.337
+#       rrg-<pi>_gpu         LevelFS=0.431   FairShare=0.498
+#   LevelFS picks the def-* account — wrong; submitting under the rrg-*
+#   account gave a 1.48× higher FAIRSHARE priority component
+#   (1.68 M → 2.50 M).
 #
 #   In addition, RRG / RPP allocations are merit-awarded for a specific
 #   project and are annually use-it-or-lose-it; default allocations are

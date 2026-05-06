@@ -96,8 +96,9 @@ cgroup memory allocation. A `cp` of a 30 GB dataset to `/tmp` inside a
 `--mem=64G` job leaves you with 34 GB for everything else (Python process,
 dataloader workers, page cache). Once a 65th GB lands the cgroup OOM-killer
 SIGKILLs the job — `sacct` shows `State=CANCELLED` / `ExitCode=0:0` even
-though no `scancel` was issued. **Confirmed on Fir 2026-05-06** (job
-38842614, killed staging 28 GB of NPZ to /tmp on a 64 GB allocation).
+though no `scancel` was issued. **Observed on Fir 2026-05-06**: a 28 GB
+`cp` of NPZ files into /tmp on a `--mem=64G` allocation tripped the
+cgroup-OOM partway through and SIGKILLed the job mid-stage.
 
 Always check disk quotas / capacity before staging:
 
