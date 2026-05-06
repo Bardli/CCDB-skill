@@ -89,19 +89,23 @@ node-pool rebalancing.
 
 ## Partitions and wall-time
 
-Fir uses banded partitions where SLURM picks the first that fits your
-`--time` request:
+Fir uses banded partitions where SLURM picks the smallest band that fits
+your `--time` request:
 
-| Partition | Wall-time |
-|---|---|
-| `gpubase_bygpu_b1` | 3 h |
-| `gpubase_bygpu_b2` | 6 h |
-| `gpubase_bygpu_b3` | 12 h |
-| `gpubase_bygpu_b4` | 1 day |
-| `gpubase_bygpu_b5` | 3 days |
-| `gpubase_bygpu_b6` | 7 days |
+| Partition | Wall-time | Notes |
+|---|---|---|
+| `gpubase_bygpu_b1` | 3 h | |
+| `gpubase_bygpu_b2` | 12 h | (was 6 h pre-2026-05; verify with `sinfo`) |
+| `gpubase_bygpu_b3` | 1 day | (was 12 h pre-2026-05) |
+| `gpubase_bygpu_b4` | 3 days | |
+| `gpubase_bygpu_b5` | 7 days | |
+| `gpubase_bygpu_b6` | 28 days | |
+| `gpubackfill_bygpu` | (varies) | low-priority fill-in |
 
-You normally don't pick the partition; SLURM picks it from your `--time`.
+You normally don't pick the partition; SLURM picks it. **Verify the band
+walltimes with `sinfo -o "%.20P %.20l"` before sizing a long job** —
+walltime bands have shifted at least once (the table above was last
+verified 2026-05-06).
 
 ## TRES weights (observed 2026-04, partition `gpubase_bygpu_b1`)
 
@@ -126,6 +130,39 @@ Re-verify with `scontrol show partition gpubase_bygpu_b1 | grep -i tresbill`.
 | Full H100 | ~527M / day |
 
 (Numbers are billing units, not currency; useful for relative comparison.)
+
+## Account selection — RRG first, then default
+
+If you have both an RRG (RAC competition award) and a default-allocation
+account on Fir (e.g. `rrg-jma_gpu` and `def-jma-ab_gpu` for the same PI),
+**use the RRG account first**. RRG/RPP allocations are merit-awarded for a
+specific project on an annual use-it-or-lose-it cycle; default accounts
+are auto-granted fallbacks. Reserving the RRG account "for later" wastes
+the awarded cycles.
+
+Submit-priority benefit, not just policy: on Fir the SLURM FAIRSHARE
+priority component is dominated by the *FairShare* score (multi-level
+FairTree), not by LevelFS. RRG accounts typically have higher FairShare
+because their parent group has a larger root-level share allocation —
+*even when LevelFS at the leaf account is lower*. Confirmed 2026-05-06:
+
+| Account | LevelFS | FairShare | FAIRSHARE priority |
+|---|---|---|---|
+| `def-jma-ab_gpu` | 2.998 | 0.337 | 1.68 M |
+| `rrg-jma_gpu`    | 0.431 | **0.498** | **2.50 M** (1.48× ↑) |
+
+`scripts/pick-gpu-account.sh` ranks by FairShare since 2026-05-06; the
+older LevelFS-based behaviour is preserved behind `PICK_BY=levelfs`.
+
+If a 12-h job submitted under the wrong account is still PENDING, you
+can re-route it without losing queue position:
+
+```bash
+scontrol update JobId=<jobid> Account=rrg-jma_gpu
+```
+
+The job's FAIRSHARE priority is recomputed within the next SLURM
+priority cycle (usually a minute).
 
 ## Common pitfalls on Fir
 

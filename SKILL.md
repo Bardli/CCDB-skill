@@ -38,15 +38,20 @@ module load python/3.11.5 nodejs/20.16.0 cuda/12.6 cmake/3.31.0 go/1.22.5 rust/1
 
 ## Pre-submit checklist (MANDATORY before every `sbatch`)
 
-1. **Pick the highest-LevelFS account** for the job type:
+1. **Pick the highest-FairShare account** for the job type:
    ```bash
    ~/.claude/skills/ccdb-clusters/scripts/show-fairshare.sh
    sbatch --account=$(~/.claude/skills/ccdb-clusters/scripts/pick-gpu-account.sh) <script>
    ```
    Your accounts come from `sshare -U -l` — typically `def-<pi>_<gpu|cpu>`,
-   `rrg-<pi>_<gpu|cpu>` (RAC-allocated), and `rpp-<pi>` (priority-access). The
-   `pick-gpu-account.sh` helper picks the `*_gpu` account with highest LevelFS;
-   for CPU jobs prefer `def-<pi>_cpu`.
+   `rrg-<pi>_<gpu|cpu>` (RAC-allocated), and `rpp-<pi>` (priority-access).
+   `pick-gpu-account.sh` ranks by **FairShare** (the priority-relevant 0–1
+   value SLURM uses), not LevelFS — these can disagree when you have RAC
+   and default accounts under the same PI: the RAC account often has
+   higher FairShare even with lower LevelFS, and gives ~1.5× higher
+   FAIRSHARE priority. Prefer RRG/RPP first regardless: they're
+   merit-awarded for a project on an annual use-it-or-lose-it cycle.
+   For CPU jobs prefer `def-<pi>_cpu`.
 2. **Dry-run imports** from the project dir, e.g.
    `python -c "from trainer import run_training; print('OK')"`
 3. **Match CPU count to GPU break-even** on the cluster you're using (see
@@ -70,8 +75,8 @@ module load python/3.11.5 nodejs/20.16.0 cuda/12.6 cmake/3.31.0 go/1.22.5 rust/1
 
 | Script | Purpose |
 |---|---|
-| `scripts/pick-gpu-account.sh` | Print highest-LevelFS `*_gpu` account (for `sbatch --account=$(...)`) |
-| `scripts/show-fairshare.sh` | Pretty-print all your accounts' LevelFS, sorted best-first |
+| `scripts/pick-gpu-account.sh` | Print highest-FairShare `*_gpu` account (`PICK_BY=levelfs` for old behaviour) |
+| `scripts/show-fairshare.sh` | Pretty-print all your accounts' fair-share metrics, sorted best-first |
 | `scripts/group-seff.sh [days] [account]` | Loop `seff` over your recent COMPLETED/TIMEOUT/FAILED jobs |
 
 ## Never do this (on any Alliance cluster)
